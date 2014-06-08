@@ -6,28 +6,31 @@
 #ifndef RANSAC_H_
 #define RANSAC_H_
 #include <vector>
-#include "ipoint.h"
 #include <opencv/cxcore.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
+typedef std::vector<std::pair<CvPoint2D64f, CvPoint2D64f> > VPP;
 class Ransac
 {
     public:
-        Ransac(IpPairVec &match_pairs, int m);
+        Ransac(VPP &match_pairs, int m);
+        Ransac();
         ~Ransac();
         double focal;
         CvMat *homo;
         CvMat *R;
         CvMat *T;
     private:
-        double EstimateFocal(IpPairVec &matches);
+        double EstimateFocal();
         CvMat *LeastSquaresHomography(int n, std::vector<CvPoint2D64f> &pts, std::vector<CvPoint2D64f> &mpts);
         double HomographyError(CvPoint2D64f pt, CvPoint2D64f mpt, CvMat *H);
         int CalcMinInliers(int n, int m);
-        int CalcInliers(IpPairVec &match_pairs, CvMat *H);
+        int CalcInliers(VPP &match_pairs, CvMat *H);
         double log_factorial(int n);
         CvPoint2D64f PointXform(CvPoint2D64f pt, CvMat *H);
         void ExtractRT();
+        void LM(CvMat *H);
+        void calcRTfromHomo(CvMat* H);
 
         double error_threshold;
         double p_bad_xform;

@@ -1,18 +1,25 @@
-#include "warpimage.h"
+#include "warp.h"
+#include "ransac.h"
 #include <cmath>
 
-ImageWarp::ImageWarp(IplImage *s, double f)
-    : dst(NULL)
+ImageWarp::ImageWarp(IplImage *s, double f, std::vector<CvPoint2D64f> &match_point)
+    : dst(NULL), H(NULL)
 {
-    dst = cvCloneImage(CylinderProjection(s, f));
+    dst = cvCloneImage(CylinderProjection(s, f, match_point));
 }
 
 ImageWarp::~ImageWarp()
 {
     cvReleaseImage(&dst);
+    cvReleaseMat(&H);
 }
 
-IplImage *ImageWarp::CylinderProjection(IplImage *s, double f)
+IplImage *ImageWarp::GetWarpedImage()
+{
+    return this->dst;
+}
+
+IplImage *ImageWarp::CylinderProjection(IplImage *s, double f, std::vector<CvPoint2D64f> &match_point)
 {
     int height = s->height, width = s->width;
     double xi, yi, xmin, ymin, xmax, ymax, xc, yc;
@@ -44,6 +51,17 @@ IplImage *ImageWarp::CylinderProjection(IplImage *s, double f)
 
     IplImage *D = cvCreateImage(cvSize(width, height), s->depth, s->nChannels);
 
+
+    //feature warp
+    int nMatch = static_cast<int>(match_point.size());
+    for(int i = 0; i < nMatch; ++i) {
+        xc = xmin + match_point[i].x * dx;
+        yc = ymin + match_point[i].y * dy;
+        Cylinder2Coodinate(xc, yc, f, xi, yi);
+        match_point[i].x = xi;
+        match_point[i].y = yi;
+    }
+
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
             xc = xmin + j * dx;
@@ -60,6 +78,11 @@ IplImage *ImageWarp::CylinderProjection(IplImage *s, double f)
     }
 
     return D;
+}
+
+CvMat *ImageWarp::GetTransformMatrix()
+{
+    return this->H;
 }
 
 void ImageWarp::BilinearInterpolate(IplImage *s, double x, double y, uchar *rgb)
@@ -127,7 +150,7 @@ uchar ImageWarp::GetColor(IplImage *s, int i, int j, int channel)
     return p[3 * i + channel];
 }
 
-void ImageWarp::Coordinate2Cylinder(double x, double y, double f, double &Xc, double &Yc)
+void Warp::Coordinate2Cylinder(double x, double y, double f, double &Xc, double &Yc)
 {
     double theta = atan(x / f);
     double h = y / sqrt(x * x + f * f);
@@ -135,7 +158,7 @@ void ImageWarp::Coordinate2Cylinder(double x, double y, double f, double &Xc, do
     Yc = f * h;
 }
 
-void ImageWarp::Cylinder2Coodinate(double xc, double yc, double f, double &X, double &Y)
+void Warp::Cylinder2Coodinate(double xc, double yc, double f, double &X, double &Y)
 {
     double theta = xc / f;
     double h = yc / f;

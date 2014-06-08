@@ -2,7 +2,7 @@
 #include <cmath>
 #include <ctime>
 
-Ransac::Ransac(IpPairVec &match_pairs, int m)
+Ransac::Ransac(VPP &match_pairs, int m)
     : focal(0.0),
       homo(NULL),
       R(NULL),
@@ -44,7 +44,8 @@ Ransac::Ransac(IpPairVec &match_pairs, int m)
     }
 
     if (homo) {
-        EstimateFocal(match_pairs);
+        EstimateFocal();
+        ExtractRT();
     }
 }
 
@@ -55,7 +56,7 @@ Ransac::~Ransac()
     cvReleaseMat(&T);
 }
 
-int Ransac::CalcInliers(IpPairVec &match_pairs, CvMat *H)
+int Ransac::CalcInliers(VPP &match_pairs, CvMat *H)
 {
     int nInliers = 0;
 
@@ -109,7 +110,9 @@ double Ransac::log_factorial(int n)
     return f;
 }
 
-
+/*
+ *DLT(direct linear transform)
+ */
 CvMat *Ransac::LeastSquaresHomography(int n, std::vector<CvPoint2D64f> &pts, std::vector<CvPoint2D64f> &mpts)
 {
     CvMat *A, *B, *H, X;
@@ -200,32 +203,17 @@ CvPoint2D64f Ransac::PointXform(CvPoint2D64f pt, CvMat *H)
  *So I just use findHomography function from opencv.
  *
  */
-double Ransac::EstimateFocal(IpPairVec &matches)
+double Ransac::EstimateFocal()
 {
-    unsigned int nMatches = matches.size();
-    std::vector<cv::Point2f> vp1(nMatches), vp2(nMatches);
-    for (unsigned int i = 0; i < nMatches; ++i) {
-        cv::Point2f tmp;
-        tmp.x = matches[i].first.x;
-        tmp.y = matches[i].first.y;
-        vp1[i] = tmp;
-
-        tmp.x = matches[i].second.x;
-        tmp.y = matches[i].second.y;
-        vp2[i] = tmp;
-    }
-
-    cv::Mat H = cv::findHomography(vp1, vp2, CV_RANSAC, 1);
-
-    int size = H.cols * H.rows;
+    int size = homo->cols * homo->rows;
     std::vector<double> M(size);
 
     for (int i = 0; i < size; ++i) {
-        M[i] = H.at<double>(i / H.cols, i % H.rows);
+        M[i] = cvmGet(homo, i / homo->cols, i % homo->rows);
     }
 
     double f = -M[2] * M[5] * M[6] * M[7] / ((M[0] * M[3] + M[1] * M[4]) * (M[0] * M[1] + M[3] * M[4]));
-    focal = 1000 * sqrt(sqrt(f));
+    focal = 1000 * sqrt(sqrt(abs(f)));
     return focal;
 }
 

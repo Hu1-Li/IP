@@ -13,7 +13,9 @@
 #include <ctime>
 #include <iostream>
 #include "ransac.h"
-#include "warpimage.h"
+#include "warp.h"
+#include "blend.h"
+#include "utils.h"
 
 int mainStaticMatch(char *i1, char *i2)
 {
@@ -28,23 +30,35 @@ int mainStaticMatch(char *i1, char *i2)
     IpPairVec matches;
     getMatches(ipts1, ipts2, matches);
 
-    Ransac R(matches, 4);
-    std::cout << R.focal << std::endl;
+    int nMatch = static_cast<int>(matches.size());
+    std::vector<CvPoint2D64f>vp1(nMatch), vp2(nMatch);
+    std::vector<std::pair<CvPoint2D64f, CvPoint2D64f> >vpp;
 
-    //print homo
-    for(int i = 0; i < R.homo->rows; ++i) {
-        for(int j = 0; j < R.homo->cols; ++j) {
-            std::cout << cvmGet(R.homo, i, j) << " ";
-        }
-        std::cout << std::endl;
+    for(int i = 0; i < nMatch; ++i) {
+        vp1[i] = cvPoint2D64f(matches[i].first.x, matches[i].first.y);
+        vp2[i] = cvPoint2D64f(matches[i].second.x, matches[i].second.y);
+        vpp.push_back(std::make_pair(vp1[i], vp2[i]));
     }
 
-    ImageWarp I1(img1, R.focal);
-    cvSaveImage("warp1.jpg", I1.dst);
+    Ransac R(vpp, 4);
+    std::cout << R.focal << std::endl;
+    PrintCvMat(R.homo);
 
-    ImageWarp I2(img2, R.focal);
-    cvSaveImage("warp2.jpg", I2.dst);
+    ImageWarp I1(img1, R.focal, vp1);
+    cvSaveImage("warp1.jpg", I1.GetWarpedImage());
 
+    ImageWarp I2(img2, R.focal, vp2);
+    cvSaveImage("warp2.jpg", I2.GetWarpedImage());
+
+    std::vector<std::pair<CvPoint2D64f, CvPoint2D64f> >vpp_warp;
+    for(int i = 0; i < nMatch; ++i) {
+        vpp_warp.push_back(std::make_pair(vp1[i], vp2[i]));
+    }
+    Ransac RR(vpp_warp, 4);
+    PrintCvMat(RR.homo);
+
+    Blend B(I1.GetWarpedImage(), I2.GetWarpedImage(), RR.homo);
+    cvSaveImage("trans.jpg", B.GetBlendImage());
     return 0;
 }
 

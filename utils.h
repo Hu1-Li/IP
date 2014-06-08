@@ -14,7 +14,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "ipoint.h"
-
+#include <iostream>
 #include <vector>
 
 
@@ -58,6 +58,17 @@ void loadSurf(char *filename, std::vector < Ipoint > &ipts);
 inline int fRound(float flt)
 {
     return (int) floor(flt + 0.5f);
+}
+
+inline void PrintCvMat(CvMat *H)
+{
+    for(int i = 0; i < H->rows; ++i) {
+        for(int j = 0; j < H->cols; ++j) {
+            std::cout << cvmGet(H, i, j) << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 #endif
