@@ -5,6 +5,8 @@
 Ransac::Ransac(IpPairVec &match_pairs, int m)
     : focal(0.0),
       homo(NULL),
+      R(NULL),
+      T(NULL),
       error_threshold(2.0),
       p_bad_xform(0.01),
       ransac_prob_bad_supp(0.10),
@@ -42,13 +44,15 @@ Ransac::Ransac(IpPairVec &match_pairs, int m)
     }
 
     if (homo) {
-        EstimateFocal();
+        EstimateFocal(match_pairs);
     }
 }
 
 Ransac::~Ransac()
 {
     cvReleaseMat(&homo);
+    cvReleaseMat(&R);
+    cvReleaseMat(&T);
 }
 
 int Ransac::CalcInliers(IpPairVec &match_pairs, CvMat *H)
@@ -190,16 +194,42 @@ CvPoint2D64f Ransac::PointXform(CvPoint2D64f pt, CvMat *H)
     return xpt;
 }
 
-double Ransac::EstimateFocal()
+/*
+ *Since The LM algorithm hasn't benn implement,
+ *The matrix homo is not accurate.
+ *So I just use findHomography function from opencv.
+ *
+ */
+double Ransac::EstimateFocal(IpPairVec &matches)
 {
-    int size = homo->cols * homo->rows;
+    unsigned int nMatches = matches.size();
+    std::vector<cv::Point2f> vp1(nMatches), vp2(nMatches);
+    for (unsigned int i = 0; i < nMatches; ++i) {
+        cv::Point2f tmp;
+        tmp.x = matches[i].first.x;
+        tmp.y = matches[i].first.y;
+        vp1[i] = tmp;
+
+        tmp.x = matches[i].second.x;
+        tmp.y = matches[i].second.y;
+        vp2[i] = tmp;
+    }
+
+    cv::Mat H = cv::findHomography(vp1, vp2, CV_RANSAC, 1);
+
+    int size = H.cols * H.rows;
     std::vector<double> M(size);
 
     for (int i = 0; i < size; ++i) {
-        M[i] = cvmGet(homo, i / homo->cols, i % homo->rows);
+        M[i] = H.at<double>(i / H.cols, i % H.rows);
     }
 
     double f = -M[2] * M[5] * M[6] * M[7] / ((M[0] * M[3] + M[1] * M[4]) * (M[0] * M[1] + M[3] * M[4]));
     focal = 1000 * sqrt(sqrt(f));
     return focal;
+}
+
+void Ransac::ExtractRT()
+{
+
 }

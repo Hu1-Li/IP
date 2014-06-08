@@ -88,9 +88,14 @@ void FastHessian::setIntImage(IplImage *img)
 void FastHessian::getIpoints()
 {
     // filter index map
-    // why this???
     static const int filter_map[OCTAVES][INTERVALS] =
-    { {0, 1, 2, 3}, {1, 3, 4, 5}, {3, 5, 6, 7}, {5, 7, 8, 9}, {7, 9, 10, 11} };
+    { 
+        {0, 1, 2, 3}, 
+        {1, 3, 4, 5}, 
+        {3, 5, 6, 7}, 
+        {5, 7, 8, 9}, 
+        {7, 9, 10, 11}
+    };
 
     // Clear the vector of exisiting ipts
     ipts.clear();
